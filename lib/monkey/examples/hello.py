@@ -1,9 +1,7 @@
 import monkey
 
-f = open('/tmp/index.html', 'w')
-f.write("<html><body><h2>Hello Monkey</h2></body></html>")
-f.close()
-
+with open('/tmp/index.html', 'w') as f:
+    f.write("<html><body><h2>Hello Monkey</h2></body></html>")
 monkey.init(None, 0, 0, '/tmp/')
 monkey.configure(indexfile='index.html')
 

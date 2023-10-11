@@ -29,7 +29,7 @@ To run a single GC case:
 """
 
 PLATFORM_NAME = os.uname().sysname.lower()
-IWASM_CMD = "../../../product-mini/platforms/" + PLATFORM_NAME + "/build/iwasm"
+IWASM_CMD = f"../../../product-mini/platforms/{PLATFORM_NAME}/build/iwasm"
 IWASM_SGX_CMD = "../../../product-mini/platforms/linux-sgx/enclave-sample/iwasm"
 IWASM_QEMU_CMD = "iwasm"
 SPEC_TEST_DIR = "spec/test/core"
@@ -73,7 +73,7 @@ def ignore_the_case(
     if not multi_module_flag and case_name in ["imports", "linking"]:
         return True
 
-    if "i386" == target and case_name in ["float_exprs"]:
+    if target == "i386" and case_name in ["float_exprs"]:
         return True
 
     if gc_flag:
@@ -150,19 +150,20 @@ def test_case(
     ):
         return True
 
-    CMD = ["python3", "runtest.py"]
-    CMD.append("--wast2wasm")
-    CMD.append(WAST2WASM_CMD if not gc_flag else SPEC_INTERPRETER_CMD)
-    CMD.append("--interpreter")
+    CMD = [
+        "python3",
+        "runtest.py",
+        "--wast2wasm",
+        WAST2WASM_CMD if not gc_flag else SPEC_INTERPRETER_CMD,
+        "--interpreter",
+    ]
     if sgx_flag:
         CMD.append(IWASM_SGX_CMD)
     elif qemu_flag:
         CMD.append(IWASM_QEMU_CMD)
     else:
         CMD.append(IWASM_CMD)
-    CMD.append("--aot-compiler")
-    CMD.append(WAMRC_CMD)
-
+    CMD.extend(("--aot-compiler", WAMRC_CMD))
     if aot_flag:
         CMD.append("--aot")
 
@@ -185,8 +186,7 @@ def test_case(
         CMD.append("--xip")
 
     if qemu_flag:
-        CMD.append("--qemu")
-        CMD.append("--qemu-firmware")
+        CMD.extend(("--qemu", "--qemu-firmware"))
         CMD.append(qemu_firmware)
 
     if not clean_up_flag:
@@ -282,9 +282,8 @@ def test_suite(
     if parl_flag:
         print(f"----- Run the whole spec test suite on {mp.cpu_count()} cores -----")
         with mp.Pool() as pool:
-            results = {}
-            for case_path in case_list:
-                results[case_path.stem] = pool.apply_async(
+            results = {
+                case_path.stem: pool.apply_async(
                     test_case,
                     [
                         str(case_path),
@@ -303,7 +302,8 @@ def test_suite(
                         log,
                     ],
                 )
-
+                for case_path in case_list
+            }
             for case_name, result in results.items():
                 try:
                     if qemu_flag:
@@ -320,7 +320,7 @@ def test_suite(
                     print(f"{case_name} meets TimeoutError")
                     failed_case += 1
     else:
-        print(f"----- Run the whole spec test suite -----")
+        print("----- Run the whole spec test suite -----")
         for case_path in case_list:
             try:
                 test_case(
@@ -348,7 +348,7 @@ def test_suite(
         f"IN ALL {case_count} cases: {successful_case} PASS, {failed_case} FAIL, {case_count - successful_case - failed_case} SKIP"
     )
 
-    return 0 == failed_case
+    return failed_case == 0
 
 
 def main():

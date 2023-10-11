@@ -99,11 +99,7 @@ class Visitor(c_ast.NodeVisitor):
                 # CFUCNTYPE is a pointer of function
                 return pointed_type
 
-            if "None" == pointed_type:
-                return "c_void_p"
-
-            return f"POINTER({pointed_type})"
-
+            return "c_void_p" if pointed_type == "None" else f"POINTER({pointed_type})"
         elif isinstance(c_type, c_ast.ArrayDecl):
             return f"POINTER({self.get_type_name(c_type.type)})"
         elif isinstance(c_type, c_ast.IdentifierType):
@@ -115,7 +111,7 @@ class Visitor(c_ast.NodeVisitor):
             if type_name.startswith("wasm_"):
                 return type_name
 
-            if not type_name in self.type_map:
+            if type_name not in self.type_map:
                 raise RuntimeError(f"a new type should be in type_map: {type_name}")
 
             return self.type_map.get(type_name)
@@ -142,10 +138,9 @@ class Visitor(c_ast.NodeVisitor):
         elif isinstance(c_type, c_ast.Decl):
             return self.get_type_name(c_type.type)
         elif isinstance(c_type, c_ast.ParamList):
-            content = ",".join(
+            return ",".join(
                 [self.get_type_name(param.type) for param in c_type.params]
             )
-            return content
         else:
             raise RuntimeError(f"unexpected type: {c_type.show()}")
 
@@ -248,9 +243,8 @@ class Visitor(c_ast.NodeVisitor):
 
         if node.name == self.get_type_name(node.type):
             return
-        else:
-            self.ret += f"{node.name} = {self.get_type_name(node.type)}\n"
-            self.ret += "\n"
+        self.ret += f"{node.name} = {self.get_type_name(node.type)}\n"
+        self.ret += "\n"
 
     def visit_FuncDecl(self, node):
         # pylint: disable=invalid-name
@@ -274,7 +268,7 @@ class Visitor(c_ast.NodeVisitor):
             # ignore void but not void*
             if isinstance(arg.type, c_ast.TypeDecl):
                 type_name = self.get_type_name(arg.type)
-                if "None" == type_name:
+                if type_name == "None":
                     continue
 
             params_len += 1
@@ -302,11 +296,10 @@ class Visitor(c_ast.NodeVisitor):
 
             if elem.value:
                 elem_value = int(elem.value.value)
+            elif i == 0:
+                elem_value = 0
             else:
-                if 0 == i:
-                    elem_value = 0
-                else:
-                    elem_value += 1
+                elem_value += 1
 
             self.ret += f" = {elem_value}\n"
 

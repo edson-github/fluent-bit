@@ -22,11 +22,7 @@ import traceback
 from select import select
 from subprocess import PIPE, STDOUT, Popen
 
-if sys.version_info[0] == 2:
-    IS_PY_3 = False
-else:
-    IS_PY_3 = True
-
+IS_PY_3 = sys.version_info[0] != 2
 test_aot = False
 # "x86_64", "i386", "aarch64", "armv7", "thumbv7", "riscv32_ilp32", "riscv32_ilp32d", "riscv32_lp64", "riscv64_lp64d"
 test_target = "x86_64"
@@ -55,11 +51,7 @@ def log(data, end='\n'):
 # TODO: do we need to support '\n' too
 import platform
 
-if platform.system().find("CYGWIN_NT") >= 0:
-    # TODO: this is weird, is this really right on Cygwin?
-    sep = "\n\r\n"
-else:
-    sep = "\r\n"
+sep = "\n\r\n" if platform.system().find("CYGWIN_NT") >= 0 else "\r\n"
 rundir = None
 
 class Runner():
@@ -115,19 +107,15 @@ class Runner():
                 read_byte = read_byte.decode('utf-8') if IS_PY_3 else read_byte
 
                 debug(read_byte)
-                if self.no_pty:
-                    self.buf += read_byte.replace('\n', '\r\n')
-                else:
-                    self.buf += read_byte
+                self.buf += read_byte.replace('\n', '\r\n') if self.no_pty else read_byte
                 self.buf = self.buf.replace('\r\r', '\r')
 
                 # filter the prompts
                 for prompt in prompts:
                     pattern = re.compile(prompt)
-                    match = pattern.search(self.buf)
-                    if match:
+                    if match := pattern.search(self.buf):
                         end = match.end()
-                        buf = self.buf[0:end-len(prompt)]
+                        buf = self.buf[:end-len(prompt)]
                         self.buf = self.buf[end:]
                         return buf
         return None
@@ -140,23 +128,24 @@ class Runner():
         self.stdin.write(str_to_write)
 
     def cleanup(self):
-        if self.process:
-            try:
-                self.writeline("__exit__")
-                time.sleep(.020)
-                self.process.kill()
-            except OSError:
-                pass
-            except IOError:
-                pass
-            self.process = None
-            self.stdin.close()
-            if self.stdin != self.stdout:
-                self.stdout.close()
-            self.stdin = None
-            self.stdout = None
-            if not IS_PY_3:
-                sys.exc_clear()
+        if not self.process:
+            return
+        try:
+            self.writeline("__exit__")
+            time.sleep(.020)
+            self.process.kill()
+        except OSError:
+            pass
+        except IOError:
+            pass
+        self.process = None
+        self.stdin.close()
+        if self.stdin != self.stdout:
+            self.stdout.close()
+        self.stdin = None
+        self.stdout = None
+        if not IS_PY_3:
+            sys.exc_clear()
 
 def assert_prompt(runner, prompts, timeout, is_need_execute_result):
     # Wait for the initial prompt
@@ -164,13 +153,13 @@ def assert_prompt(runner, prompts, timeout, is_need_execute_result):
     if not header and is_need_execute_result:
         log(" ---------- will terminate cause the case needs result while there is none inside of buf. ----------")
         sys.exit(1)
-    if not header == None:
-        if header:
-            log("Started with:\n%s" % header)
-    else:
-        log("Did not one of following prompt(s): %s" % repr(prompts))
-        log("    Got      : %s" % repr(r.buf))
+    if header is None:
+        log(f"Did not one of following prompt(s): {repr(prompts)}")
+        log(f"    Got      : {repr(r.buf)}")
         sys.exit(1)
+
+    elif header:
+        log("Started with:\n%s" % header)
 
 
 ### WebAssembly specific
@@ -332,75 +321,78 @@ def get_module_exp_from_assert(string):
     return result
 
 def string_to_unsigned(number_in_string, lane_type):
-    if not lane_type in ['i8x16', 'i16x8', 'i32x4', 'i64x2']:
-        raise Exception("invalid value {} and type {} and lane_type {}".format(number_in_string, type, lane_type))
+    if lane_type not in ['i8x16', 'i16x8', 'i32x4', 'i64x2']:
+        raise Exception(
+            f"invalid value {number_in_string} and type {type} and lane_type {lane_type}"
+        )
 
     number = int(number_in_string, 16) if '0x' in number_in_string else int(number_in_string)
 
-    if "i8x16" == lane_type:
+    if lane_type == "i8x16":
         if number < 0:
             packed = struct.pack('b', number)
             number = struct.unpack('B', packed)[0]
-    elif "i16x8" == lane_type:
+    elif lane_type == "i16x8":
         if number < 0:
             packed = struct.pack('h', number)
             number = struct.unpack('H', packed)[0]
-    elif "i32x4" == lane_type:
+    elif lane_type == "i32x4":
         if number < 0:
             packed = struct.pack('i', number)
             number = struct.unpack('I', packed)[0]
-    else: # "i64x2" == lane_type:
-        if number < 0:
-            packed = struct.pack('q', number)
-            number = struct.unpack('Q', packed)[0]
+    elif number < 0:
+        packed = struct.pack('q', number)
+        number = struct.unpack('Q', packed)[0]
 
     return number
 
 def cast_v128_to_i64x2(numbers, type, lane_type):
     numbers = [n.replace("_", "") for n in numbers]
 
-    if "i8x16" == lane_type:
-        assert(16 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    if lane_type == "i8x16":
+        assert (16 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [string_to_unsigned(n, lane_type) for n in numbers]
         # i8 -> i64
         packed = struct.pack(16 * "B", *numbers)
-    elif "i16x8" == lane_type:
-        assert(8 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    elif lane_type == "i16x8":
+        assert (8 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [string_to_unsigned(n, lane_type) for n in numbers]
         # i16 -> i64
         packed = struct.pack(8 * "H", *numbers)
-    elif "i32x4" == lane_type:
-        assert(4 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    elif lane_type == "i32x4":
+        assert (4 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [string_to_unsigned(n, lane_type) for n in numbers]
         # i32 -> i64
         packed = struct.pack(4 * "I", *numbers)
-    elif "i64x2" == lane_type:
-        assert(2 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    elif lane_type == "i64x2":
+        assert (2 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [string_to_unsigned(n, lane_type) for n in numbers]
         # i64 -> i64
         packed = struct.pack(2 * "Q", *numbers)
-    elif "f32x4" == lane_type:
-        assert(4 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    elif lane_type == "f32x4":
+        assert (4 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [parse_simple_const_w_type(n, "f32")[0] for n in numbers]
         # f32 -> i64
         packed = struct.pack(4 * "f", *numbers)
-    elif "f64x2" == lane_type:
-        assert(2 == len(numbers)), "{} should like {}".format(numbers, lane_type)
+    elif lane_type == "f64x2":
+        assert (2 == len(numbers)), f"{numbers} should like {lane_type}"
         # str -> int
         numbers = [parse_simple_const_w_type(n, "f64")[0] for n in numbers]
         # f64 -> i64
         packed = struct.pack(2 * "d", *numbers)
     else:
-        raise Exception("invalid value {} and type {} and lane_type {}".format(numbers, type, lane_type))
+        raise Exception(
+            f"invalid value {numbers} and type {type} and lane_type {lane_type}"
+        )
 
     assert(packed)
     unpacked = struct.unpack("Q Q", packed)
-    return unpacked, "[{} {}]:{}:v128".format(unpacked[0], unpacked[1], lane_type)
+    return unpacked, f"[{unpacked[0]} {unpacked[1]}]:{lane_type}:v128"
 
 
 def parse_simple_const_w_type(number, type):
@@ -414,11 +406,11 @@ def parse_simple_const_w_type(number, type):
         if "nan:" in number:
             # TODO: how to handle this correctly
             if "nan:canonical" in number:
-                return float.fromhex("0x200000"), "nan:{}".format(type)
+                return float.fromhex("0x200000"), f"nan:{type}"
             elif "nan:arithmetic" in number:
-                return float.fromhex("-0x200000"), "nan:{}".format(type)
+                return float.fromhex("-0x200000"), f"nan:{type}"
             else:
-                return float('nan'), "nan:{}".format(type)
+                return float('nan'), f"nan:{type}"
         else:
             number = float.fromhex(number) if '0x' in number else float(number)
             return number, "{:.7g}:{}".format(number, type)
@@ -430,7 +422,7 @@ def parse_simple_const_w_type(number, type):
         elif number == "any":
             return "any", "any:ref.null"
         else:
-            raise Exception("invalid value {} and type {}".format(number, type))
+            raise Exception(f"invalid value {number} and type {type}")
     elif type == "ref.extern":
         number = int(number, 16) if '0x' in number else int(number)
         return number, "0x{:x}:ref.extern".format(number)
@@ -438,7 +430,7 @@ def parse_simple_const_w_type(number, type):
         number = int(number, 16) if '0x' in number else int(number)
         return number, "0x{:x}:ref.host".format(number)
     else:
-        raise Exception("invalid value {} and type {}".format(number, type))
+        raise Exception(f"invalid value {number} and type {type}")
 
 def parse_assertion_value(val):
     """
@@ -481,27 +473,18 @@ def int2uint32(i):
 
 def int2int32(i):
     val = i & 0xffffffff
-    if val & 0x80000000:
-        return val - 0x100000000
-    else:
-        return val
+    return val - 0x100000000 if val & 0x80000000 else val
 
 def int2uint64(i):
     return i & 0xffffffffffffffff
 
 def int2int64(i):
     val = i & 0xffffffffffffffff
-    if val & 0x8000000000000000:
-        return val - 0x10000000000000000
-    else:
-        return val
+    return val - 0x10000000000000000 if val & 0x8000000000000000 else val
 
 
 def num_repr(i):
-    if isinstance(i, int) or isinstance(i, long):
-        return re.sub("L$", "", hex(i))
-    else:
-        return "%.16g" % i
+    return re.sub("L$", "", hex(i)) if isinstance(i, (int, long)) else "%.16g" % i
 
 def hexpad16(i):
     return "0x%04x" % i
@@ -550,37 +533,42 @@ def vector_value_comparison(out, expected):
 
     # since i64x2
     out_packed = struct.pack("QQ", int(out_val[0], 16), int(out_val[1], 16))
-    expected_packed = struct.pack("QQ",
-        int(expected_val[0]) if not "0x" in expected_val[0] else int(expected_val[0], 16),
-        int(expected_val[1]) if not "0x" in expected_val[1] else int(expected_val[1], 16))
+    expected_packed = struct.pack(
+        "QQ",
+        int(expected_val[0])
+        if "0x" not in expected_val[0]
+        else int(expected_val[0], 16),
+        int(expected_val[1])
+        if "0x" not in expected_val[1]
+        else int(expected_val[1], 16),
+    )
 
     if lane_type in ["i8x16", "i16x8", "i32x4", "i64x2"]:
         return out_packed == expected_packed;
+    assert(lane_type in ["f32x4", "f64x2"]), "unexpected lane_type"
+
+    if lane_type == "f32x4":
+        out_unpacked = struct.unpack("ffff", out_packed)
+        expected_unpacked = struct.unpack("ffff", expected_packed)
     else:
-        assert(lane_type in ["f32x4", "f64x2"]), "unexpected lane_type"
+        out_unpacked = struct.unpack("dd", out_packed)
+        expected_unpacked = struct.unpack("dd", expected_packed)
 
-        if "f32x4" == lane_type:
-            out_unpacked = struct.unpack("ffff", out_packed)
-            expected_unpacked = struct.unpack("ffff", expected_packed)
-        else:
-            out_unpacked = struct.unpack("dd", out_packed)
-            expected_unpacked = struct.unpack("dd", expected_packed)
+    out_is_nan = [math.isnan(o) for o in out_unpacked]
+    expected_is_nan = [math.isnan(e) for e in expected_unpacked]
+    if out_is_nan and expected_is_nan:
+        return True;
 
-        out_is_nan = [math.isnan(o) for o in out_unpacked]
-        expected_is_nan = [math.isnan(e) for e in expected_unpacked]
-        if out_is_nan and expected_is_nan:
-            return True;
+    # print("compare {} and {}".format(out_unpacked, expected_unpacked))
+    result = [o == e for o, e in zip(out_unpacked, expected_unpacked)]
 
-        # print("compare {} and {}".format(out_unpacked, expected_unpacked))
-        result = [o == e for o, e in zip(out_unpacked, expected_unpacked)]
+    if not all(result):
+        result = [
+            "{:.7g}".format(o) == "{:.7g}".format(e)
+            for o, e in zip(out_unpacked, expected_packed)
+        ]
 
-        if not all(result):
-            result = [
-                "{:.7g}".format(o) == "{:.7g}".format(e)
-                for o, e in zip(out_unpacked, expected_packed)
-            ]
-
-        return all(result)
+    return all(result)
 
 
 def simple_value_comparison(out, expected):
@@ -602,7 +590,7 @@ def simple_value_comparison(out, expected):
     out_val, out_type = out.split(':')
     expected_val, expected_type = expected.split(':')
 
-    if not out_type == expected_type:
+    if out_type != expected_type:
         return False
 
     out_val, _ = parse_simple_const_w_type(out_val, out_type)
@@ -612,32 +600,32 @@ def simple_value_comparison(out, expected):
         or (math.isnan(out_val) and math.isnan(expected_val)):
         return True
 
-    if "i32" == expected_type:
+    if expected_type == "i32":
         out_val_binary = struct.pack('I', out_val) if out_val > 0 \
                             else struct.pack('i', out_val)
         expected_val_binary = struct.pack('I', expected_val) \
                                 if expected_val > 0 \
                                     else struct.pack('i', expected_val)
-    elif "i64" == expected_type:
+    elif expected_type == "i64":
         out_val_binary = struct.pack('Q', out_val) if out_val > 0 \
                             else struct.pack('q', out_val)
         expected_val_binary = struct.pack('Q', expected_val) \
                                 if expected_val > 0 \
                                     else struct.pack('q', expected_val)
-    elif "f32" == expected_type:
+    elif expected_type == "f32":
         out_val_binary = struct.pack('f', out_val)
         expected_val_binary = struct.pack('f', expected_val)
-    elif "f64" == expected_type:
+    elif expected_type == "f64":
         out_val_binary = struct.pack('d', out_val)
         expected_val_binary = struct.pack('d', expected_val)
-    elif "ref.extern" == expected_type:
+    elif expected_type == "ref.extern":
         out_val_binary = out_val
         expected_val_binary = expected_val
-    elif "ref.host" == expected_type:
+    elif expected_type == "ref.host":
         out_val_binary = out_val
         expected_val_binary = expected_val
     else:
-        assert(0), "unknown 'expected_type' {}".format(expected_type)
+        assert 0, f"unknown 'expected_type' {expected_type}"
 
     if out_val_binary == expected_val_binary:
         return True
@@ -658,10 +646,24 @@ def value_comparison(out, expected):
     if not expected:
         return False
 
-    if not out in ["ref.array", "ref.struct", "ref.func", "ref.any", "ref.i31"]:
-        assert(':' in out), "out should be in a form likes numbers:type, but {}".format(out)
-    if not expected in ["ref.array", "ref.struct", "ref.func", "ref.any", "ref.i31"]:
-        assert(':' in expected), "expected should be in a form likes numbers:type, but {}".format(expected)
+    if out not in [
+        "ref.array",
+        "ref.struct",
+        "ref.func",
+        "ref.any",
+        "ref.i31",
+    ]:
+        assert (':' in out), f"out should be in a form likes numbers:type, but {out}"
+    if expected not in [
+        "ref.array",
+        "ref.struct",
+        "ref.func",
+        "ref.any",
+        "ref.i31",
+    ]:
+        assert (
+            ':' in expected
+        ), f"expected should be in a form likes numbers:type, but {expected}"
 
     if 'v128' in out:
         return vector_value_comparison(out, expected)
@@ -673,7 +675,7 @@ def is_result_match_expected(out, expected):
     return value_comparison(out, expected)
 
 def test_assert(r, opts, mode, cmd, expected):
-    log("Testing(%s) %s = %s" % (mode, cmd, expected))
+    log(f"Testing({mode}) {cmd} = {expected}")
     out = invoke(r, opts, cmd)
     if '\n' in out or ' ' in out:
         outs = [''] + out.split('\n')[1:]
@@ -736,11 +738,10 @@ def test_assert_return(r, opts, form):
             # no params, no return
             n = re.search('^\(assert_return\s+\(invoke\s+\$((?:[^\s])*)\s+"([^"]*)"*()()\)\s*\)\s*$', form, re.S)
     if not m and not n:
-        if re.search('^\(assert_return\s+\(get.*\).*\)$', form, re.S):
-            log("ignoring assert_return get");
-            return
-        else:
-            raise Exception("unparsed assert_return: '%s'" % form)
+        if not re.search('^\(assert_return\s+\(get.*\).*\)$', form, re.S):
+            raise Exception(f"unparsed assert_return: '{form}'")
+        log("ignoring assert_return get");
+        return
     if m and not n:
         func = m.group(1)
         if ' ' in func:
@@ -764,36 +765,33 @@ def test_assert_return(r, opts, form):
                 splitted = [s for s in splitted if s]
 
                 if splitted[0] in ["i32.const", "i64.const"]:
-                    assert(2 == len(splitted)), "{} should have two parts".format(splitted)
+                    assert (2 == len(splitted)), f"{splitted} should have two parts"
                     # in wast 01234 means 1234
                     # in c 0123 means 83 in oct
                     number, _ = parse_simple_const_w_type(splitted[1], splitted[0][:3])
                     args.append(str(number))
                 elif splitted[0] in ["f32.const", "f64.const"]:
                     # let strtof or strtod handle original arguments
-                    assert(2 == len(splitted)), "{} should have two parts".format(splitted)
+                    assert (2 == len(splitted)), f"{splitted} should have two parts"
                     args.append(splitted[1])
-                elif "v128.const" == splitted[0]:
-                    assert(len(splitted) > 2), "{} should have more than two parts".format(splitted)
+                elif splitted[0] == "v128.const":
+                    assert (len(splitted) > 2), f"{splitted} should have more than two parts"
                     numbers, _ = cast_v128_to_i64x2(splitted[2:], 'v128', splitted[1])
 
                     assert(len(numbers) == 2), "has to reform arguments into i64x2"
-                    args.append("{}\{}".format(numbers[0], numbers[1]))
-                elif "ref.null" == splitted[0]:
+                    args.append(f"{numbers[0]}\{numbers[1]}")
+                elif splitted[0] == "ref.null":
                     args.append("null")
-                elif "ref.extern" == splitted[0]:
+                elif splitted[0] == "ref.extern":
                     number, _ = parse_simple_const_w_type(splitted[1], splitted[0])
                     args.append(str(number))
-                elif "ref.host" == splitted[0]:
+                elif splitted[0] == "ref.host":
                     number, _ = parse_simple_const_w_type(splitted[1], splitted[0])
                     args.append(str(number))
                 else:
                     assert(0), "an unkonwn parameter type"
 
-        if m.group(3) == '':
-            returns= []
-        else:
-            returns = re.split("\)\s*\(", m.group(3)[1:-1])
+        returns = [] if m.group(3) == '' else re.split("\)\s*\(", m.group(3)[1:-1])
         # processed numbers in strings
         if len(returns) == 1 and returns[0] in ["ref.array", "ref.struct", "ref.i31",
                                                 "ref.eq", "ref.any", "ref.extern",
@@ -806,20 +804,22 @@ def test_assert_return(r, opts, form):
             expected = [parse_assertion_value(v)[1] for v in returns]
         expected = ",".join(expected)
 
-        test_assert(r, opts, "return", "%s %s" % (func, " ".join(args)), expected)
+        test_assert(r, opts, "return", f'{func} {" ".join(args)}', expected)
     elif not m and n:
         module = temp_module_table[n.group(1)].split(".wasm")[0]
         # assume the cmd is (assert_return(invoke $ABC "func")).
         # run the ABC.wasm firstly
         if test_aot:
-            r = compile_wasm_to_aot(module+".wasm", module+".aot", True, opts, r)
+            r = compile_wasm_to_aot(f"{module}.wasm", f"{module}.aot", True, opts, r)
             try:
                 assert_prompt(r, ['Compile success'], opts.start_timeout, False)
             except:
                 _, exc, _ = sys.exc_info()
                 log("Run wamrc failed:\n  got: '%s'" % r.buf)
                 sys.exit(1)
-        r = run_wasm_with_repl(module+".wasm", module+".aot" if test_aot else module, opts, r)
+        r = run_wasm_with_repl(
+            f"{module}.wasm", f"{module}.aot" if test_aot else module, opts, r
+        )
         # Wait for the initial prompt
         try:
             assert_prompt(r, ['webassembly> '], opts.start_timeout, False)
@@ -840,7 +840,7 @@ def test_assert_return(r, opts, form):
             args = [re.split(' +', v)[1] for v in re.split("\)\s*\(", n1[1:-1])]
 
         _, expected = parse_assertion_value(n.group(4)[1:-1])
-        test_assert(r, opts, "return", "%s %s" % (func, " ".join(args)), expected)
+        test_assert(r, opts, "return", f'{func} {" ".join(args)}', expected)
 
 def test_assert_trap(r, opts, form):
     # params
@@ -855,7 +855,7 @@ def test_assert_trap(r, opts, form):
             # no params
             n = re.search('^\(assert_trap\s+\(invoke\s+\$((?:[^\s])*)\s+"([^"]*)"\s*()\)\s*"([^"]+)"\s*\)\s*$', form, re.S)
     if not m and not n:
-        raise Exception("unparsed assert_trap: '%s'" % form)
+        raise Exception(f"unparsed assert_trap: '{form}'")
 
     if m and not n:
         func = m.group(1)
@@ -867,24 +867,26 @@ def test_assert_trap(r, opts, form):
             m1 = m1.replace("ref.null func)", "(ref.null null)")
             args = [re.split(' +', v)[1] for v in re.split("\)\s*\(", m1[1:-1])]
 
-        expected = "Exception: %s" % m.group(3)
-        test_assert(r, opts, "trap", "%s %s" % (func, " ".join(args)), expected)
+        expected = f"Exception: {m.group(3)}"
+        test_assert(r, opts, "trap", f'{func} {" ".join(args)}', expected)
 
     elif not m and n:
         module = n.group(1)
-        module = tempfile.gettempdir() + "/" + module
+        module = f"{tempfile.gettempdir()}/{module}"
 
         # will trigger the module named in assert_return(invoke $ABC).
         # run the ABC.wasm firstly
         if test_aot:
-            r = compile_wasm_to_aot(module+".wasm", module+".aot", True, opts, r)
+            r = compile_wasm_to_aot(f"{module}.wasm", f"{module}.aot", True, opts, r)
             try:
                 assert_prompt(r, ['Compile success'], opts.start_timeout, False)
             except:
                 _, exc, _ = sys.exc_info()
                 log("Run wamrc failed:\n  got: '%s'" % r.buf)
                 sys.exit(1)
-        r = run_wasm_with_repl(module+".wasm", module+".aot" if test_aot else module, opts, r)
+        r = run_wasm_with_repl(
+            f"{module}.wasm", f"{module}.aot" if test_aot else module, opts, r
+        )
         # Wait for the initial prompt
         try:
             assert_prompt(r, ['webassembly> '], opts.start_timeout, False)
@@ -898,8 +900,8 @@ def test_assert_trap(r, opts, form):
             args = []
         else:
             args = [re.split(' +', v)[1] for v in re.split("\)\s*\(", n.group(3)[1:-1])]
-        expected = "Exception: %s" % n.group(4)
-        test_assert(r, opts, "trap", "%s %s" % (func, " ".join(args)), expected)
+        expected = f"Exception: {n.group(4)}"
+        test_assert(r, opts, "trap", f'{func} {" ".join(args)}', expected)
 
 def test_assert_exhaustion(r,opts,form):
     # params
@@ -908,14 +910,14 @@ def test_assert_exhaustion(r,opts,form):
         # no params
         m = re.search('^\(assert_exhaustion\s+\(invoke\s+"([^"]*)"\s*()\)\s*"([^"]+)"\s*\)\s*$', form)
     if not m:
-        raise Exception("unparsed assert_exhaustion: '%s'" % form)
+        raise Exception(f"unparsed assert_exhaustion: '{form}'")
     func = m.group(1)
     if m.group(2) == '':
         args = []
     else:
         args = [re.split(' +', v)[1] for v in re.split("\)\s*\(", m.group(2)[1:-1])]
     expected = "Exception: %s\n" % m.group(3)
-    test_assert(r, opts, "exhaustion", "%s %s" % (func, " ".join(args)), expected)
+    test_assert(r, opts, "exhaustion", f'{func} {" ".join(args)}', expected)
 
 def do_invoke(r, opts, form):
     # params
@@ -924,7 +926,7 @@ def do_invoke(r, opts, form):
         # no params
         m = re.search('^\(invoke\s+"([^"]+)"\s*()\)\s*$', form)
     if not m:
-        raise Exception("unparsed invoke: '%s'" % form)
+        raise Exception(f"unparsed invoke: '{form}'")
     func = m.group(1)
 
     if ' ' in func:
@@ -935,21 +937,17 @@ def do_invoke(r, opts, form):
     else:
         args = [re.split(' +', v)[1] for v in re.split("\)\s*\(", m.group(2)[1:-1])]
 
-    log("Invoking %s(%s)" % (
-        func, ", ".join([str(a) for a in args])))
+    log(f'Invoking {func}({", ".join([str(a) for a in args])})')
 
-    invoke(r, opts, "%s %s" % (func, " ".join(args)))
+    invoke(r, opts, f'{func} {" ".join(args)}')
 
 def skip_test(form, skip_list):
-    for s in skip_list:
-        if re.search(s, form):
-            return True
-    return False
+    return any(re.search(s, form) for s in skip_list)
 
 def compile_wast_to_wasm(form, wast_tempfile, wasm_tempfile, opts):
-    log("Writing WAST module to '%s'" % wast_tempfile)
+    log(f"Writing WAST module to '{wast_tempfile}'")
     open(wast_tempfile, 'w').write(form)
-    log("Compiling WASM to '%s'" % wasm_tempfile)
+    log(f"Compiling WASM to '{wasm_tempfile}'")
 
     # default arguments
     if opts.gc:
@@ -962,30 +960,25 @@ def compile_wast_to_wasm(form, wast_tempfile, wasm_tempfile, opts):
     # commit 30c1e983d30b33a8004b39fd60cbd64477a7956c
     # Enable reference types by default (#1729)
 
-    log("Running: %s" % " ".join(cmd))
+    log(f'Running: {" ".join(cmd)}')
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
-        print(str(e))
+        print(e)
         return False
 
     return True
 
 def compile_wasm_to_aot(wasm_tempfile, aot_tempfile, runner, opts, r, output = 'default'):
-    log("Compiling AOT to '%s'" % aot_tempfile)
+    log(f"Compiling AOT to '{aot_tempfile}'")
     cmd = [opts.aot_compiler]
 
-    if test_target == "x86_64":
-        cmd.append("--target=x86_64")
-        cmd.append("--cpu=skylake")
-    elif test_target == "i386":
-        cmd.append("--target=i386")
-    elif test_target == "aarch64":
+    if test_target == "aarch64":
         cmd += ["--target=aarch64", "--cpu=cortex-a57"]
     elif test_target == "armv7":
         cmd += ["--target=armv7", "--target-abi=gnueabihf"]
-    elif test_target == "thumbv7":
-        cmd += ["--target=thumbv7", "--target-abi=gnueabihf", "--cpu=cortex-a9", "--cpu-features=-neon"]
+    elif test_target == "i386":
+        cmd.append("--target=i386")
     elif test_target == "riscv32_ilp32":
         cmd += ["--target=riscv32", "--target-abi=ilp32", "--cpu=generic-rv32", "--cpu-features=+m,+a,+c"]
     elif test_target == "riscv32_ilp32d":
@@ -994,9 +987,10 @@ def compile_wasm_to_aot(wasm_tempfile, aot_tempfile, runner, opts, r, output = '
         cmd += ["--target=riscv64", "--target-abi=lp64", "--cpu=generic-rv64", "--cpu-features=+m,+a,+c"]
     elif test_target == "riscv64_lp64d":
         cmd += ["--target=riscv64", "--target-abi=lp64d", "--cpu=generic-rv32", "--cpu-features=+m,+a,+c"]
-    else:
-        pass
-
+    elif test_target == "thumbv7":
+        cmd += ["--target=thumbv7", "--target-abi=gnueabihf", "--cpu=cortex-a9", "--cpu-features=-neon"]
+    elif test_target == "x86_64":
+        cmd.extend(("--target=x86_64", "--cpu=skylake"))
     if opts.sgx:
         cmd.append("-sgx")
 
@@ -1004,17 +998,15 @@ def compile_wasm_to_aot(wasm_tempfile, aot_tempfile, runner, opts, r, output = '
         cmd.append("--disable-simd")
 
     if opts.xip:
-        cmd.append("--enable-indirect-mode")
-        cmd.append("--disable-llvm-intrinsics")
-
+        cmd.extend(("--enable-indirect-mode", "--disable-llvm-intrinsics"))
     if opts.multi_thread:
         cmd.append("--enable-multi-thread")
 
-    if output == 'object':
-        cmd.append("--format=object")
-    elif output == 'ir':
+    if output == 'ir':
         cmd.append("--format=llvmir-opt")
 
+    elif output == 'object':
+        cmd.append("--format=object")
     # disable llvm link time optimization as it might convert
     # code of tail call into code of dead loop, and stack overflow
     # exception isn't thrown in several cases
@@ -1022,7 +1014,7 @@ def compile_wasm_to_aot(wasm_tempfile, aot_tempfile, runner, opts, r, output = '
 
     cmd += ["-o", aot_tempfile, wasm_tempfile]
 
-    log("Running: %s" % " ".join(cmd))
+    log(f'Running: {" ".join(cmd)}')
     if not runner:
         subprocess.check_call(cmd)
     else:
@@ -1033,7 +1025,7 @@ def compile_wasm_to_aot(wasm_tempfile, aot_tempfile, runner, opts, r, output = '
 
 def run_wasm_with_repl(wasm_tempfile, aot_tempfile, opts, r):
     tmpfile = aot_tempfile if test_aot else wasm_tempfile
-    log("Starting interpreter for module '%s'" % tmpfile)
+    log(f"Starting interpreter for module '{tmpfile}'")
 
     cmd_iwasm = [opts.interpreter, "--heap-size=0", "-v=5" if opts.verbose else "-v=0", "--repl", tmpfile]
 
@@ -1044,36 +1036,33 @@ def run_wasm_with_repl(wasm_tempfile, aot_tempfile, opts, r):
         if opts.qemu_firmware == '':
             raise Exception("QEMU firmware missing")
 
-        if opts.target == "thumbv7":
-            cmd = ["qemu-system-arm", "-semihosting", "-M", "sabrelite", "-m", "1024", "-smp", "4", "-nographic", "-kernel", opts.qemu_firmware]
-        elif opts.target == "riscv32_ilp32":
+        if opts.target == "riscv32_ilp32":
             cmd = ["qemu-system-riscv32", "-semihosting", "-M", "virt,aclint=on", "-cpu", "rv32", "-smp", "8", "-nographic", "-bios", "none", "-kernel", opts.qemu_firmware]
         elif opts.target == "riscv64_lp64":
             cmd = ["qemu-system-riscv64", "-semihosting", "-M", "virt,aclint=on", "-cpu", "rv64", "-smp", "8", "-nographic", "-bios", "none", "-kernel", opts.qemu_firmware]
 
+        elif opts.target == "thumbv7":
+            cmd = ["qemu-system-arm", "-semihosting", "-M", "sabrelite", "-m", "1024", "-smp", "4", "-nographic", "-kernel", opts.qemu_firmware]
     else:
         cmd = cmd_iwasm
 
-    log("Running: %s" % " ".join(cmd))
+    log(f'Running: {" ".join(cmd)}')
     if (r != None):
         r.cleanup()
     r = Runner(cmd, no_pty=opts.no_pty)
 
     if opts.qemu:
         r.read_to_prompt(['nsh> '], 10)
-        r.writeline("mount -t hostfs -o fs={} /tmp".format(tempfile.gettempdir()))
+        r.writeline(f"mount -t hostfs -o fs={tempfile.gettempdir()} /tmp")
         r.read_to_prompt(['nsh> '], 10)
         r.writeline(" ".join(cmd_iwasm))
 
     return r
 
 def create_tmpfiles(wast_name):
-    tempfiles = []
-
     (t1fd, wast_tempfile) = tempfile.mkstemp(suffix=".wast")
     (t2fd, wasm_tempfile) = tempfile.mkstemp(suffix=".wasm")
-    tempfiles.append(wast_tempfile)
-    tempfiles.append(wasm_tempfile)
+    tempfiles = [wast_tempfile, wasm_tempfile]
     if test_aot:
         (t3fd, aot_tempfile) = tempfile.mkstemp(suffix=".aot")
         tempfiles.append(aot_tempfile)
@@ -1084,8 +1073,8 @@ def create_tmpfiles(wast_name):
 
 def test_assert_with_exception(form, wast_tempfile, wasm_tempfile, aot_tempfile, opts, r, loadable = True):
     details_inside_ast = get_module_exp_from_assert(form)
-    log("module is ....'%s'"%details_inside_ast[0])
-    log("exception is ....'%s'"%details_inside_ast[1])
+    log(f"module is ....'{details_inside_ast[0]}'")
+    log(f"exception is ....'{details_inside_ast[1]}'")
     # parse the module
     module = details_inside_ast[0]
     expected = details_inside_ast[1]
@@ -1101,8 +1090,8 @@ def test_assert_with_exception(form, wast_tempfile, wasm_tempfile, aot_tempfile,
             _, exc, _ = sys.exc_info()
             if (r.buf.find(expected) >= 0):
                 log("Out exception includes expected one, pass:")
-                log("  Expected: %s" % expected)
-                log("  Got: %s" % r.buf)
+                log(f"  Expected: {expected}")
+                log(f"  Got: {r.buf}")
                 return
             else:
                 log("Run wamrc failed:\n  expected: '%s'\n  got: '%s'" % \
@@ -1119,13 +1108,12 @@ def test_assert_with_exception(form, wast_tempfile, wasm_tempfile, aot_tempfile,
             assert_prompt(r, ['webassembly> '], opts.start_timeout, True)
         except:
             _, exc, _ = sys.exc_info()
-            if (r.buf.find(expected) >= 0):
-                log("Out exception includes expected one, pass:")
-                log("  Expected: %s" %expected)
-                log("  Got: %s" % r.buf)
-            else:
+            if r.buf.find(expected) < 0:
                 raise Exception("Failed:\n  expected: '%s'\n  got: '%s'" % \
                                 (expected, r.buf))
+            log("Out exception includes expected one, pass:")
+            log(f"  Expected: {expected}")
+            log(f"  Got: {r.buf}")
 
 if __name__ == "__main__":
     opts = parser.parse_args(sys.argv[1:])

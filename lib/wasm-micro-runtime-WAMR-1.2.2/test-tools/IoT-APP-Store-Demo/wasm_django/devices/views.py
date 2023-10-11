@@ -57,13 +57,12 @@ def index(req):
         devices = msg.decode('utf-8').split("*")
         for dev in devices:
             dev_info = eval(dev)
-            addr = dev_info['addr']
             port = dev_info['port']
             apps = dev_info['num']
-            device_list.append({'IP': addr, 'Port': port, 'apps': apps})    
-    else:
-        if err == "refused":
-            return render(req, "empty.html")
+            addr = dev_info['addr']
+            device_list.append({'IP': addr, 'Port': port, 'apps': apps})
+    elif err == "refused":
+        return render(req, "empty.html")
 
     dlist = device_list
 
@@ -99,7 +98,7 @@ def apps(req):
 
     try:
         s.connect((host, port))
-        s.send(bytes("query:"+dev_addr+":"+str(dev_port), encoding='utf8'))
+        s.send(bytes(f"query:{dev_addr}:{str(dev_port)}", encoding='utf8'))
         msg = s.recv(1024)
     except socket.error as e:
         print("unable to connect to server")
@@ -111,18 +110,18 @@ def apps(req):
     if msg != "":
         if msg.decode() == "fail":
             return render(req, "empty.html")
-        else:
-            dic = eval(msg.decode(encoding='utf8'))
-            app_num = dic["num"]
-            for i in range(app_num):
-                app_list.append(
-                    {'pname': dic["applet"+str(i+1)], 'status': 'Installed', 'current_version': '1.0'})
-
+        dic = eval(msg.decode(encoding='utf8'))
+        app_num = dic["num"]
+        app_list.extend(
+            {
+                'pname': dic[f"applet{str(i + 1)}"],
+                'status': 'Installed',
+                'current_version': '1.0',
+            }
+            for i in range(app_num)
+        )
     alist = app_list
-    device_info = []
-    device_info.append(
-        {'IP': dev_addr, 'Port': str(dev_port), 'apps': app_num})
-
+    device_info = [{'IP': dev_addr, 'Port': str(dev_port), 'apps': app_num}]
     print(device_info)
     return render(req, 'application.html', {'alist': json.dumps(alist), 'dlist': json.dumps(device_info), 'llist': json.dumps(avaliable_list),
     "open_status":json.dumps(open_status),"search_node": json.dumps(search_node),})
@@ -145,8 +144,12 @@ def appDownload(req):
 
     try:
         s.connect((host, port))
-        s.send(bytes("install:"+dev_addr+":"+str(dev_port)+":"+app_name +
-                     ":"+app_path + app_name + ".wasm", encoding='utf8'))
+        s.send(
+            bytes(
+                f"install:{dev_addr}:{str(dev_port)}:{app_name}:{app_path}{app_name}.wasm",
+                encoding='utf8',
+            )
+        )
         msg = s.recv(1024)
     except socket.error as e:
         print("unable to connect to server")
@@ -180,12 +183,14 @@ def appDelete(req):
     host = '127.0.0.1'
     port = 8889
     s.connect((host, port))
-    s.send(bytes("uninstall:"+dev_addr+":" +
-                 str(dev_port)+":"+app_name, encoding='utf8'))
+    s.send(
+        bytes(
+            f"uninstall:{dev_addr}:{str(dev_port)}:{app_name}", encoding='utf8'
+        )
+    )
     msg = s.recv(1024)
     s.close()
-    r = HttpResponse("ok")
-    return r
+    return HttpResponse("ok")
 
 static_list = [{'ID': 'timer', 'Version': '1.0'}, {'ID': 'connection', 'Version': '1.0'}, {'ID': 'event_publisher', 'Version': '3.0'}, {
          'ID': 'event_subscriber', 'Version': '1.0'}, {'ID': 'reuqest_handler', 'Version': '1.0'}, {'ID': 'sensor', 'Version': '1.0'}, {'ID': 'ui_app', 'Version': '1.0'}]
@@ -202,7 +207,6 @@ user_file_list = []
 files_list = []
 def uploadapps(req):
     status = []
-    local_list = ['timer','connection','event_publisher','event_subscriber','reuqest_handler','sensor']
     req.encoding = 'utf-8'
     if req.method == 'POST':
         myfile = req.FILES.get("myfile", None)
@@ -212,11 +216,12 @@ def uploadapps(req):
 
         if not os.path.exists(store_path):
             os.makedirs(store_path)
-        
+
         file_name = obj.name.split(".")[0]
         file_prefix = obj.name.split(".")[-1]
 
 
+        local_list = ['timer','connection','event_publisher','event_subscriber','reuqest_handler','sensor']
         if file_prefix != "wasm":
             status = ["Not a wasm file"]
         elif file_name in local_list:
@@ -228,12 +233,11 @@ def uploadapps(req):
             avaliable_list.append({'ID': file_name, 'Version': '1.0'})
             user_file_list.append({'ID': file_name, 'Version': '1.0'})
             files_list.append(file_name)   
-       
+
         print(user_file_list)
-        f = open(file_path, 'wb')
-        for chunk in obj.chunks():
-            f.write(chunk)
-        f.close()
+        with open(file_path, 'wb') as f:
+            for chunk in obj.chunks():
+                f.write(chunk)
         return render(req, 'appstore.html', {'staticlist': json.dumps(static_list), 'flist': json.dumps(user_file_list),'ulist':json.dumps(status)})
 
 appname_list = []
@@ -242,16 +246,14 @@ def addapps(request):
     types = ''
     print("enter addapps")
     request.encoding = 'utf-8'
-    app_dic = {'ID': '', 'Version': ''}
-
     # if request.method == 'get':
     if "NAME" in request.GET:
         a_name = request.GET['NAME']
         if a_name != "" and a_name not in appname_list:
             appname_list.append(a_name)
             message = request.GET['NAME'] + request.GET['Version']
-            app_dic['ID'] = request.GET['NAME']
-            app_dic['Version'] = request.GET['Version']
+            app_dic = {'ID': request.GET['NAME'], 'Version': request.GET['Version']}
+
             avaliable_list.append(app_dic)
         else:
             types = "Exist"

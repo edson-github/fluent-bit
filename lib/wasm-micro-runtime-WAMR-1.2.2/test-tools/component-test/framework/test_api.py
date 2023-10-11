@@ -13,7 +13,7 @@ logger = None
 
 def api_init_log(log_path):
     global logger
-    print("api_init_log: " + log_path)
+    print(f"api_init_log: {log_path}")
     logger = logging.getLogger(__name__)
 
     logger.setLevel(level = logging.INFO)

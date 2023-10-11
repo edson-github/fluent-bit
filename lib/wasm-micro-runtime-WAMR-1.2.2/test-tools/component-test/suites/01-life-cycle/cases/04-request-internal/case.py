@@ -74,7 +74,4 @@ class CTestCase(CTestCaseBase):
         time.sleep(2)
         expect_response_payload = {"key1":"value1","key2":"value2"}
         ret = check_response_payload(expect_response_payload)
-        if (ret == False):
-            return False, ''
-
-        return True, ''
+        return (False, '') if (ret == False) else (True, '')

@@ -110,7 +110,7 @@ def read_file_to_buffer(file_name):
     buffer = None
 
     if not os.path.exists(file_name):
-        logging.error("file {} not found.".format(file_name))
+        logging.error(f"file {file_name} not found.")
         return "file not found"
 
     try:
@@ -125,80 +125,67 @@ def decode_attr_container(msg):
     attr_dict = {}
 
     buf = msg[26 : ]
-    (total_len, tag_len) = struct.unpack('@IH', buf[0 : 6])
+    (total_len, tag_len) = struct.unpack('@IH', buf[:6])
     tag_name = buf[6 : 6 + tag_len].decode()
     buf = buf[6 + tag_len : ]
-    (attr_num, ) = struct.unpack('@H', buf[0 : 2])
+    (attr_num, ) = struct.unpack('@H', buf[:2])
     buf = buf[2 : ]
 
     logging.info("parsed attr:")
-    logging.info("total_len:{}, tag_len:{}, tag_name:{}, attr_num:{}"
-            .format(str(total_len), str(tag_len), str(tag_name), str(attr_num)))
+    logging.info(
+        f"total_len:{str(total_len)}, tag_len:{str(tag_len)}, tag_name:{str(tag_name)}, attr_num:{str(attr_num)}"
+    )
 
-    for i in range(attr_num):
-        (key_len, ) = struct.unpack('@H', buf[0 : 2])
+    for _ in range(attr_num):
+        (key_len, ) = struct.unpack('@H', buf[:2])
         key_name = buf[2 : 2 + key_len - 1].decode()
         buf = buf[2 + key_len : ]
-        (type_index, ) = struct.unpack('@c', buf[0 : 1])
+        (type_index, ) = struct.unpack('@c', buf[:1])
 
         attr_type = attr_type_list[int(type_index[0])]
         buf = buf[1 : ]
 
-        if attr_type == "ATTR_TYPE_BYTE": # = ATTR_TYPE_INT8
-            (attr_value, ) = struct.unpack('@c', buf[0 : 1])
+        if attr_type == "ATTR_TYPE_BOOLEAN":
+            (attr_value, ) = struct.unpack('@?', buf[:1])
             buf = buf[1 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_SHORT": # = ATTR_TYPE_INT16
-            (attr_value, ) = struct.unpack('@h', buf[0 : 2])
-            buf = buf[2 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_INT": # = ATTR_TYPE_INT32
-            (attr_value, ) = struct.unpack('@i', buf[0 : 4])
-            buf = buf[4 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_INT64":
-            (attr_value, ) = struct.unpack('@q', buf[0 : 8])
-            buf = buf[8 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_UINT8":
-            (attr_value, ) = struct.unpack('@B', buf[0 : 1])
+        elif attr_type == "ATTR_TYPE_BYTE":
+            (attr_value, ) = struct.unpack('@c', buf[:1])
             buf = buf[1 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_UINT16":
-            (attr_value, ) = struct.unpack('@H', buf[0 : 2])
-            buf = buf[2 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_UINT32":
-            (attr_value, ) = struct.unpack('@I', buf[0 : 4])
-            buf = buf[4 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_UINT64":
-            (attr_value, ) = struct.unpack('@Q', buf[0 : 8])
-            buf = buf[8 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_FLOAT":
-            (attr_value, ) = struct.unpack('@f', buf[0 : 4])
-            buf = buf[4 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_DOUBLE":
-            (attr_value, ) = struct.unpack('@d', buf[0 : 8])
-            buf = buf[8 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_BOOLEAN":
-            (attr_value, ) = struct.unpack('@?', buf[0 : 1])
-            buf = buf[1 : ]
-            # continue
-        elif attr_type == "ATTR_TYPE_STRING":
-            (str_len, ) = struct.unpack('@H', buf[0 : 2])
-            attr_value = buf[2 : 2 + str_len - 1].decode()
-            buf = buf[2 + str_len : ]
-            # continue
         elif attr_type == "ATTR_TYPE_BYTEARRAY":
-            (byte_len, ) = struct.unpack('@I', buf[0 : 4])
+            (byte_len, ) = struct.unpack('@I', buf[:4])
             attr_value = buf[4 : 4 + byte_len]
             buf = buf[4 + byte_len : ]
-            # continue
-
+        elif attr_type == "ATTR_TYPE_DOUBLE":
+            (attr_value, ) = struct.unpack('@d', buf[:8])
+            buf = buf[8 : ]
+        elif attr_type == "ATTR_TYPE_FLOAT":
+            (attr_value, ) = struct.unpack('@f', buf[:4])
+            buf = buf[4 : ]
+        elif attr_type == "ATTR_TYPE_INT":
+            (attr_value, ) = struct.unpack('@i', buf[:4])
+            buf = buf[4 : ]
+        elif attr_type == "ATTR_TYPE_INT64":
+            (attr_value, ) = struct.unpack('@q', buf[:8])
+            buf = buf[8 : ]
+        elif attr_type == "ATTR_TYPE_SHORT":
+            (attr_value, ) = struct.unpack('@h', buf[:2])
+            buf = buf[2 : ]
+        elif attr_type == "ATTR_TYPE_STRING":
+            (str_len, ) = struct.unpack('@H', buf[:2])
+            attr_value = buf[2 : 2 + str_len - 1].decode()
+            buf = buf[2 + str_len : ]
+        elif attr_type == "ATTR_TYPE_UINT16":
+            (attr_value, ) = struct.unpack('@H', buf[:2])
+            buf = buf[2 : ]
+        elif attr_type == "ATTR_TYPE_UINT32":
+            (attr_value, ) = struct.unpack('@I', buf[:4])
+            buf = buf[4 : ]
+        elif attr_type == "ATTR_TYPE_UINT64":
+            (attr_value, ) = struct.unpack('@Q', buf[:8])
+            buf = buf[8 : ]
+        elif attr_type == "ATTR_TYPE_UINT8":
+            (attr_value, ) = struct.unpack('@B', buf[:1])
+            buf = buf[1 : ]
         attr_dict[key_name] = attr_value
 
     logging.info(str(attr_dict))
@@ -241,11 +228,12 @@ class Request():
 
     def send(self, conn, is_install):
         leading = struct.pack('!2B', 0x12, 0x34)
-        
-        if not is_install:
-            msg_type = struct.pack('!H', 0x0002)
-        else:
-            msg_type = struct.pack('!H', 0x0004)
+
+        msg_type = (
+            struct.pack('!H', 0x0002)
+            if not is_install
+            else struct.pack('!H', 0x0004)
+        )
         buff, buff_len = self.pack_request()
         lenth = struct.pack('!I', buff_len)
 
@@ -290,10 +278,10 @@ def install(conn, app_name, wasm_file):
     wasm = read_file_to_buffer(wasm_file)
     if wasm == "file not found":
         return "failed to install: file not found"
-        
+
     print("wasm file len:")
     print(len(wasm))
-    req = Request("/applet?name=" + app_name, 3, 98, wasm, len(wasm))
+    req = Request(f"/applet?name={app_name}", 3, 98, wasm, len(wasm))
     if req.send(conn, True) == -1:
         return "fail"
     time.sleep(0.05)
@@ -315,14 +303,14 @@ def install(conn, app_name, wasm_file):
         return "success"
     else:
         res = decode_attr_container(msg)
-        logging.warning('Install application failed: %s' % (str(res)))
-        print(str(res))
+        logging.warning(f'Install application failed: {str(res)}')
+        print(res)
 
         return str(res)
     
 
 def uninstall(conn, app_name):
-    req = Request("/applet?name=" + app_name, 4, 99, "", 0)
+    req = Request(f"/applet?name={app_name}", 4, 99, "", 0)
     if req.send(conn, False) == -1:
         return "fail"
     time.sleep(0.05)
@@ -344,8 +332,8 @@ def uninstall(conn, app_name):
         return "success"
     else:
         res = decode_attr_container(msg)
-        logging.warning('Uninstall application failed: %s' % (str(res)))
-        print(str(res))
+        logging.warning(f'Uninstall application failed: {str(res)}')
+        print(res)
 
         return str(res)
 
@@ -409,18 +397,14 @@ class TCPServer:
                 # self.message_queues[connection] = queue.Queue()
 
                 res = query(connection)
-                
+
                 if res != "fail":
                     dev = Device(connection, client_address[0], client_address[1])
                     self.devices.append(dev)
                     self.conn_dict[client_address] = connection
 
-                    dev_info = {}
-                    dev_info['addr'] = dev.addr
-                    dev_info['port'] = dev.port
-                    dev_info['apps'] = 0
-
-                    logging.info('A new client connected from ("%s":"%s")' % (dev.conn, dev.port))
+                    dev_info = {'addr': dev.addr, 'port': dev.port, 'apps': 0}
+                    logging.info(f'A new client connected from ("{dev.conn}":"{dev.port}")')
 
             elif s is self.cmd_sock:
                 connection, client_address = s.accept()
@@ -433,15 +417,15 @@ class TCPServer:
                 data = s.recv(1024)
                 if data != b'':
                     # A readable client socket has data
-                    logging.info('received "%s" from %s' % (data, s.getpeername()))
-                    
+                    logging.info(f'received "{data}" from {s.getpeername()}')
+
                     # self.message_queues[s].put(data)
                     # # Add output channel for response
-                   
+                                   
                     # if s not in self.outputs:
                     #     self.outputs.append(s)
-                    
-                    if(data.decode().split(':')[0] == "query"):
+
+                    if (data.decode().split(':')[0] == "query"):
                         if data.decode().split(':')[1] == "all":
                             resp = []
                             print('start query all devices')
@@ -452,7 +436,7 @@ class TCPServer:
                                 dev_info["addr"] = dev.addr
                                 dev_info["port"] = dev.port
                                 resp.append(str(dev_info))
-                                
+
                                 print(resp)
 
                             if self.message_queues[s] is not None:
@@ -464,7 +448,7 @@ class TCPServer:
                             client_addr = (data.decode().split(':')[1],int(data.decode().split(':')[2]))
 
                             if client_addr in self.conn_dict.keys():
-                                print('start query device from (%s:%s)' % (client_addr[0], client_addr[1]))
+                                print(f'start query device from ({client_addr[0]}:{client_addr[1]})')
                                 resp = query(self.conn_dict[client_addr])
                                 print(resp)
 
@@ -472,25 +456,26 @@ class TCPServer:
                                     self.message_queues[s].put(bytes(str(resp), encoding = 'utf8'))
                                     if s not in self.outputs:
                                         self.outputs.append(s)
-                            else:   # no connection
-                                if self.message_queues[s] is not None:
-                                    self.message_queues[s].put(bytes(str("fail"), encoding = 'utf8'))
-                                    if s not in self.outputs:
-                                        self.outputs.append(s)
-                    elif(data.decode().split(':')[0] == "install"):
+                            elif self.message_queues[s] is not None:
+                                self.message_queues[s].put(bytes("fail", encoding = 'utf8'))
+                                if s not in self.outputs:
+                                    self.outputs.append(s)
+                    elif (data.decode().split(':')[0] == "install"):
                         client_addr = (data.decode().split(':')[1],int(data.decode().split(':')[2]))
                         app_name = data.decode().split(':')[3]
                         app_file = data.decode().split(':')[4]
 
                         if client_addr in self.conn_dict.keys():
-                            print('start install application %s to ("%s":"%s")' % (app_name, client_addr[0], client_addr[1]))
+                            print(
+                                f'start install application {app_name} to ("{client_addr[0]}":"{client_addr[1]}")'
+                            )
                             res = install(self.conn_dict[client_addr], app_name, app_file)
                             if self.message_queues[s] is not None:
-                                logging.info("response {} to cmd server".format(res))
+                                logging.info(f"response {res} to cmd server")
                                 self.message_queues[s].put(bytes(res, encoding = 'utf8'))
                                 if s not in self.outputs:
                                     self.outputs.append(s)
-                    elif(data.decode().split(':')[0] == "uninstall"):
+                    elif (data.decode().split(':')[0] == "uninstall"):
                         client_addr = (data.decode().split(':')[1],int(data.decode().split(':')[2]))
                         app_name = data.decode().split(':')[3]
 
@@ -498,19 +483,19 @@ class TCPServer:
                             print("start uninstall")
                             res = uninstall(self.conn_dict[client_addr], app_name)
                             if self.message_queues[s] is not None:
-                                logging.info("response {} to cmd server".format(res))
+                                logging.info(f"response {res} to cmd server")
                                 self.message_queues[s].put(bytes(res, encoding = 'utf8'))
                                 if s not in self.outputs:
                                     self.outputs.append(s)
 
 
-                    # if self.message_queues[s] is not None:
-                    #     self.message_queues[s].put(data)
-                    #     if s not in self.outputs:
-                    #         self.outputs.append(s)
+                                # if self.message_queues[s] is not None:
+                                #     self.message_queues[s].put(data)
+                                #     if s not in self.outputs:
+                                #         self.outputs.append(s)
                 else:
                     logging.warning(data)
-                    
+
                     # Interpret empty result as closed connection
                     try:
                         for dev in self.devices:
@@ -613,8 +598,8 @@ if __name__ == '__main__':
     outputs = []
     message_queues = {}
     tcpserver = TCPServer(server, server_address, inputs, outputs, message_queues)
-    logging.info("TCP Server start at {}:{}".format(server_address[0], "8888"))
-    
+    logging.info(f"TCP Server start at {server_address[0]}:8888")
+
     task = threading.Thread(target=event_loop,args=(tcpserver,inputs,outputs))
     task.start()
     

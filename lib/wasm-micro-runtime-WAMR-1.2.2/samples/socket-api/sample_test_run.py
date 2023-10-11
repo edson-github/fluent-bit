@@ -15,16 +15,15 @@ import glob
 WAMRC_CMD = "../../wamr-compiler/build/wamrc"
 
 def compile_wasm_files_to_aot(wasm_apps_dir):
-    wasm_files = glob.glob(wasm_apps_dir + "/*.wasm")
+    wasm_files = glob.glob(f"{wasm_apps_dir}/*.wasm")
     print("Compile wasm app into aot files")
     for wasm_file in wasm_files:
-        aot_file = wasm_file[0 : len(wasm_file) - 5] + ".aot";
+        aot_file = f"{wasm_file[:len(wasm_file) - 5]}.aot";
         cmd = [ WAMRC_CMD, "-o", aot_file, wasm_file ]
         subprocess.check_call(cmd)
 
 def start_server(cmd, cwd):
-    app_server = subprocess.Popen(shlex.split(cmd), cwd=cwd)
-    return app_server
+    return subprocess.Popen(shlex.split(cmd), cwd=cwd)
 
 def run_cmd(cmd, cwd):
     qry_prc = subprocess.run(
@@ -33,8 +32,7 @@ def run_cmd(cmd, cwd):
     if (qry_prc.returncode != 0):
         print("Run {} failed, return {}".format(cmd), qry_prc.returncode)
         return
-    print("return code: {}, output:\n{}".format(qry_prc.returncode,
-                                                 qry_prc.stdout.decode()))
+    print(f"return code: {qry_prc.returncode}, output:\n{qry_prc.stdout.decode()}")
 
 def main():
     """
@@ -61,22 +59,22 @@ def main():
     try:
         print("\n================================")
         print("Test TCP server and client")
-        cmd = "./iwasm --addr-pool=0.0.0.0/15 tcp_server" + suffix
+        cmd = f"./iwasm --addr-pool=0.0.0.0/15 tcp_server{suffix}"
         app_server = start_server(cmd, args.working_directory)
         # wait for a second
         time.sleep(1)
-        cmd = "./iwasm --addr-pool=127.0.0.1/15 tcp_client" + suffix
-        for i in range(5):
+        cmd = f"./iwasm --addr-pool=127.0.0.1/15 tcp_client{suffix}"
+        for _ in range(5):
             run_cmd(cmd, args.working_directory)
 
         print("\n================================")
         print("Test UDP server and client")
-        cmd = "./iwasm --addr-pool=0.0.0.0/15 udp_server" + suffix
+        cmd = f"./iwasm --addr-pool=0.0.0.0/15 udp_server{suffix}"
         app_server = start_server(cmd, args.working_directory)
         # wait for a second
         time.sleep(1)
-        cmd = "./iwasm --addr-pool=127.0.0.1/15 udp_client" + suffix
-        for i in range(5):
+        cmd = f"./iwasm --addr-pool=127.0.0.1/15 udp_client{suffix}"
+        for _ in range(5):
             run_cmd(cmd, args.working_directory)
 
         print("\n=====================================================")
@@ -85,21 +83,21 @@ def main():
 
         print("\n================================")
         print("Test send and receive")
-        cmd = "./iwasm --addr-pool=127.0.0.1/0 ./send_recv" + suffix
+        cmd = f"./iwasm --addr-pool=127.0.0.1/0 ./send_recv{suffix}"
         run_cmd(cmd, args.working_directory)
 
         print("\n================================")
         print("Test socket options")
-        cmd = "./iwasm socket_opts" + suffix
+        cmd = f"./iwasm socket_opts{suffix}"
         run_cmd(cmd, args.working_directory)
 
         print("\n================================")
         print("Test timeout server and client")
-        cmd = "./iwasm --addr-pool=0.0.0.0/15 timeout_server" + suffix
+        cmd = f"./iwasm --addr-pool=0.0.0.0/15 timeout_server{suffix}"
         app_server = start_server(cmd, args.working_directory)
         # wait for a second
         time.sleep(1)
-        cmd = "./iwasm --addr-pool=127.0.0.1/15 timeout_client" + suffix
+        cmd = f"./iwasm --addr-pool=127.0.0.1/15 timeout_client{suffix}"
         run_cmd(cmd, args.working_directory)
 
         print("\n==========================================")

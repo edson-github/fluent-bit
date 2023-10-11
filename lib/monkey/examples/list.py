@@ -5,14 +5,11 @@ content = ''
 
 def list_cb(vhost, url, get, get_len, post, post_len, header):
     global content
-    content = "<html><body><h2>Hello friend. You asked for %s.</h2>\n"
-    content += "<pre>"
+    content = "<html><body><h2>Hello friend. You asked for %s.</h2>\n" + "<pre>"
     content += subprocess.check_output(['ls', '-lh', '/tmp'])
     content += "</pre></body></html>"
 
-    ret = {}
-    ret['return'] = 1
-    ret['content'] = content
+    ret = {'return': 1, 'content': content}
     ret['content_len'] = len(ret['content'])
 
     return ret

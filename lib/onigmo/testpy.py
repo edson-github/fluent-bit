@@ -101,11 +101,11 @@ def cc_to_cb(s, enc, cc):
 def print_result(result, pattern, file=None):
     if not file:
         file = sys.stdout
-    print(result + ": ", end='', file=file)
+    print(f"{result}: ", end='', file=file)
     try:
         print(pattern, file=file)
     except UnicodeEncodeError as e:
-        print('(' + str(e) + ')')
+        print(f'({str(e)})')
 
 def decode_errmsg(msg):
     encoding = get_encoding_name(onig_encoding)
@@ -154,9 +154,9 @@ def xx(pattern, target, s_from, s_to, mem, not_match,
     target = target2.decode(encoding, 'replace')
     limit = 100
     if len(pattern) > limit:
-        pattern = pattern[:limit] + "..."
+        pattern = f"{pattern[:limit]}..."
     if len(target) > limit:
-        target = target[:limit] + "..."
+        target = f"{target[:limit]}..."
 
     # Compile
     r = onigmo.onig_new(ctypes.byref(reg),
@@ -167,17 +167,19 @@ def xx(pattern, target, s_from, s_to, mem, not_match,
         onigmo.onig_error_code_to_str(msg, r, ctypes.byref(einfo))
         if r == err:
             nsucc += 1
-            print_result("OK(E)", "%s (/%s/ '%s')" % \
-                    (decode_errmsg(msg), pattern, target))
+            print_result("OK(E)", f"{decode_errmsg(msg)} (/{pattern}/ '{target}')")
         else:
             nerror += 1
-            print_result("ERROR", "%s (/%s/ '%s')" % \
-                    (decode_errmsg(msg), pattern, target), file=sys.stderr)
+            print_result(
+                "ERROR",
+                f"{decode_errmsg(msg)} (/{pattern}/ '{target}')",
+                file=sys.stderr,
+            )
         return
 
     if err != onigmo.ONIG_NORMAL:
         nfail += 1
-        print_result("FAIL(E)", "/%s/ '%s'" % (pattern, target))
+        print_result("FAIL(E)", f"/{pattern}/ '{target}'")
         onigmo.onig_free(reg)
         return
 
@@ -223,12 +225,14 @@ def xx(pattern, target, s_from, s_to, mem, not_match,
         onigmo.onig_error_code_to_str(msg, r)
         if r == execerr:
             nsucc += 1
-            print_result("OK(E)", "%s (/%s/ '%s')" % \
-                    (decode_errmsg(msg), pattern, target))
+            print_result("OK(E)", f"{decode_errmsg(msg)} (/{pattern}/ '{target}')")
         else:
             nerror += 1
-            print_result("ERROR", "%s (/%s/ '%s')" % \
-                    (decode_errmsg(msg), pattern, target), file=sys.stderr)
+            print_result(
+                "ERROR",
+                f"{decode_errmsg(msg)} (/{pattern}/ '{target}')",
+                file=sys.stderr,
+            )
         onigmo.onig_free(reg)
         onigmo.onig_region_free(region, 1)
         return
@@ -237,25 +241,23 @@ def xx(pattern, target, s_from, s_to, mem, not_match,
         # Not matched
         if not_match:
             nsucc += 1
-            print_result("OK(N)", "/%s/ '%s'" % (pattern, target))
+            print_result("OK(N)", f"/{pattern}/ '{target}'")
         else:
             nfail += 1
-            print_result("FAIL", "/%s/ '%s'" % (pattern, target))
+            print_result("FAIL", f"/{pattern}/ '{target}'")
+    elif not_match:
+        nfail += 1
+        print_result("FAIL(N)", f"/{pattern}/ '{target}'")
     else:
-        # Matched
-        if not_match:
-            nfail += 1
-            print_result("FAIL(N)", "/%s/ '%s'" % (pattern, target))
+        start = region[0].beg[mem]
+        end = region[0].end[mem]
+        if (start == s_from) and (end == s_to):
+            nsucc += 1
+            print_result("OK", f"/{pattern}/ '{target}'")
         else:
-            start = region[0].beg[mem]
-            end = region[0].end[mem]
-            if (start == s_from) and (end == s_to):
-                nsucc += 1
-                print_result("OK", "/%s/ '%s'" % (pattern, target))
-            else:
-                nfail += 1
-                print_result("FAIL", "/%s/ '%s' %d-%d : %d-%d" % (pattern, target,
-                        s_from, s_to, start, end))
+            nfail += 1
+            print_result("FAIL", "/%s/ '%s' %d-%d : %d-%d" % (pattern, target,
+                    s_from, s_to, start, end))
     onigmo.onig_free(reg)
     onigmo.onig_region_free(region, 1)
 
@@ -277,7 +279,7 @@ def set_encoding(enc):
     """
     global onig_encoding
 
-    if enc == None:
+    if enc is None:
         return
     if isinstance(enc, onigmo.OnigEncoding):
         onig_encoding = enc

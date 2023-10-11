@@ -26,7 +26,7 @@ class LoggerManager:
                 sys.exit(1)
             self.threads.append(thread)
             thread.start()
-            print("Logger thread for '" +  f + "' has started")
+            print(f"Logger thread for '{f}' has started")
 
         for th in self.threads:
             th.join()
@@ -45,7 +45,7 @@ class LoggerManager:
             logger.debug(rnd)
             if self.delay > 0.0:
                 time.sleep(self.delay / 1000.0)
-            i = i + 1
+            i += 1
 
 def signal_handler(sig, frame):
     print("stopping logger")

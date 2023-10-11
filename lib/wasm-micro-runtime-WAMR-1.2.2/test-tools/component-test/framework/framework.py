@@ -67,33 +67,31 @@ class CTestFramework(object):
 
         api_set_root_path(path)
 
-        print("root_path is " + self.root_path)
+        print(f"root_path is {self.root_path}")
 
     def gen_execution_stats(self):
-        return '\nTest Execution Summary: '  \
-                       '\n\tSuccess:              {}'  \
-                       '\n\tCases fails:          {}' \
-                       '\n\tSetup fails:          {}' \
-                       '\n\tCase load fails:      {}'.format(
-           self.sucess_cases,  self.failed_cases, self.setup_fails, self.load_fails)
+        return f'\nTest Execution Summary: \n\tSuccess:              {self.sucess_cases}\n\tCases fails:          {self.failed_cases}\n\tSetup fails:          {self.setup_fails}\n\tCase load fails:      {self.load_fails}'
 
     def report_result(self, success, message, case_description):
         if self.report is None:
             return
 
-        case_pass = "pass"
-        if not success:
-            case_pass = "fail"
-
-        self.report.write(case_pass + ": [" + self.running_case + "]\n\treason: " + \
-                          message + "\n\tcase: " + case_description + "\n")
+        case_pass = "fail" if not success else "pass"
+        self.report.write(
+            f"{case_pass}: [{self.running_case}"
+            + "]\n\treason: "
+            + message
+            + "\n\tcase: "
+            + case_description
+            + "\n"
+        )
         return
 
     def get_running_path(self):
-        return self.root_path + "/run/" + self.running_folder
+        return f"{self.root_path}/run/{self.running_folder}"
 
     def load_suites(self):
-        self.target_suites = os.listdir(self.root_path + "/suites")
+        self.target_suites = os.listdir(f"{self.root_path}/suites")
         return
 
     def run_case(self, suite_instance, case):
@@ -101,12 +99,12 @@ class CTestFramework(object):
         case_description = ''
         suite = suite_instance.m_name
         api_log("\n>>start run [" + case + "] >>")
-        module_name = 'suites.' + suite + ".cases." + case + ".case"
+        module_name = f'suites.{suite}.cases.{case}.case'
         try:
             module = my_import(module_name)
         except Exception as e:
-            report_fail("load case fail: " + str(e))
-            api_log_error("load case fail: " + str(e))
+            report_fail(f"load case fail: {str(e)}")
+            api_log_error(f"load case fail: {str(e)}")
             self.load_fails = self.load_fails +1
             print(traceback.format_exc())
             return False
@@ -114,8 +112,8 @@ class CTestFramework(object):
         try:
             case = module.CTestCase(suite_instance)
         except Exception as e:
-            report_fail("initialize case fail: " + str(e))
-            api_log_error("initialize case fail: " + str(e))
+            report_fail(f"initialize case fail: {str(e)}")
+            api_log_error(f"initialize case fail: {str(e)}")
             self.load_fails = self.load_fails +1
             return False
 
@@ -162,27 +160,28 @@ class CTestFramework(object):
         # suite setup
         message = ''
         api_log("\n>>> Suite [" + suite + "] starting >>>")
-        running_folder = self.get_running_path()+ "/suites/" + suite;
+        running_folder = f"{self.get_running_path()}/suites/{suite}";
 
-        module_name = 'suites.' + suite + ".suite_setup"
+        module_name = f'suites.{suite}.suite_setup'
         try:
             module = my_import(module_name)
         except Exception as e:
-            report_fail("load suite [" + suite +"] fail: " + str(e))
+            report_fail(f"load suite [{suite}] fail: {str(e)}")
             self.load_fails = self.load_fails +1
             return False
 
         try:
-            suite_instance = module.CTestSuite(suite, \
-                self.root_path + '/suites/' + suite, running_folder)
+            suite_instance = module.CTestSuite(
+                suite, f'{self.root_path}/suites/{suite}', running_folder
+            )
         except Exception as e:
-            report_fail("initialize suite fail: " + str(e))
+            report_fail(f"initialize suite fail: {str(e)}")
             self.load_fails = self.load_fails +1
             return False
 
         result, message = suite_instance.load_settings()
         if not result:
-            report_fail("load settings fail: " + str(e))
+            report_fail(f"load settings fail: {str(e)}")
             self.load_fails = self.load_fails +1
             return False
 
@@ -203,7 +202,7 @@ class CTestFramework(object):
 
         # run cases
         for case in cases:
-            if not os.path.isdir(self.root_path + '/suites/' + suite + '/cases/' + case):
+            if not os.path.isdir(f'{self.root_path}/suites/{suite}/cases/{case}'):
                 continue
 
             self.running_case = case
@@ -233,32 +232,28 @@ class CTestFramework(object):
             cur_time.tm_mon, cur_time.tm_mday, cur_time.tm_hour,  cur_time.tm_min)
 
         debug = api_get_value('debug', False)
-        if debug:
-            self.running_folder = 'debug'
-        else:
-            self.running_folder = 'run-' + time_prefix
-
-        folder = self.root_path + "/run/" +self.running_folder;
+        self.running_folder = 'debug' if debug else f'run-{time_prefix}'
+        folder = f"{self.root_path}/run/{self.running_folder}";
 
         if os.path.exists(folder):
             shutil.rmtree(folder, ignore_errors=True)
 
         if not os.path.exists(folder):
             os.makedirs(folder )
-            os.makedirs(folder  + "/suites")
+            os.makedirs(f"{folder}/suites")
 
-        api_init_log(folder + "/test.log")
+        api_init_log(f"{folder}/test.log")
 
-        self.report = open(folder + "/report.txt", 'a')
+        self.report = open(f"{folder}/report.txt", 'a')
 
         self.target_suites.sort()
 
         for suite in self.target_suites:
-            if not os.path.isdir(self.root_path + '/suites/' + suite):
+            if not os.path.isdir(f'{self.root_path}/suites/{suite}'):
                 continue
-            self.report.write("suite " + suite + " cases:\n")
+            self.report.write(f"suite {suite}" + " cases:\n")
             if self.target_cases is None:
-                cases = os.listdir(self.root_path + "/suites/" + suite + "/cases")
+                cases = os.listdir(f"{self.root_path}/suites/{suite}/cases")
                 self.run_suite(suite, cases)
             else:
                 self.run_suite(suite, self.target_cases)

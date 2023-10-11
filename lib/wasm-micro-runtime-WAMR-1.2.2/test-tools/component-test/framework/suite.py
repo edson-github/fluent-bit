@@ -14,10 +14,7 @@ class CTestSuiteBase(object):
         self.settings = {}
 
     def get_settings_item(self,  item):
-            if item in self.settings:
-                return self.settings[item]
-            else:
-                return None
+        return self.settings[item] if item in self.settings else None
 
     def load_settings(self):
         path = self.suite_path + "/settings.cfg"

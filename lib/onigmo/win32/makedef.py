@@ -45,9 +45,9 @@ for filename in header_files:
                 continue
             s = m.group(1)
             if s[-1] != ';':
-                s += ' ' + next(f)
+                s += f' {next(f)}'
             m2 = rx2.search(s)
-            if m2 and (not m2.group(1) in exclude_symbols):
+            if m2 and m2.group(1) not in exclude_symbols:
                 symbols.add(m2.group(1))
 
 print('EXPORTS')

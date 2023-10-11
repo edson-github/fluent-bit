@@ -92,10 +92,10 @@ class Module:
             data = (c_uint8 * len(data))(*data)
 
         error_buf = create_string_buffer(128)
-        module = wasm_runtime_load(data, len(data), error_buf, len(error_buf))
-        if not module:
+        if module := wasm_runtime_load(data, len(data), error_buf, len(error_buf)):
+            return module, data
+        else:
             raise Exception("Error while creating module")
-        return module, data
 
 
 class Instance:
@@ -114,19 +114,19 @@ class Instance:
         wasm_runtime_module_free(self.module_inst, wasm_handler)
 
     def lookup_function(self, name: str) -> wasm_function_inst_t:
-        func = wasm_runtime_lookup_function(self.module_inst, name, None)
-        if not func:
+        if func := wasm_runtime_lookup_function(self.module_inst, name, None):
+            return func
+        else:
             raise Exception("Error while looking-up function")
-        return func
 
     def _create_module_inst(self, module: Module, stack_size: int, heap_size: int) -> wasm_module_inst_t:
         error_buf = create_string_buffer(128)
-        module_inst = wasm_runtime_instantiate(
+        if module_inst := wasm_runtime_instantiate(
             module.module, stack_size, heap_size, error_buf, len(error_buf)
-        )
-        if not module_inst:
+        ):
+            return module_inst
+        else:
             raise Exception("Error while creating module instance")
-        return module_inst
 
 
 class ExecEnv:
@@ -143,7 +143,9 @@ class ExecEnv:
             raise Exception("Error while calling function")
 
     def _create_exec_env(self, module_inst: Instance, stack_size: int) -> wasm_exec_env_t:
-        exec_env = wasm_runtime_create_exec_env(module_inst.module_inst, stack_size)
-        if not exec_env:
+        if exec_env := wasm_runtime_create_exec_env(
+            module_inst.module_inst, stack_size
+        ):
+            return exec_env
+        else:
             raise Exception("Error while creating execution environment")
-        return exec_env

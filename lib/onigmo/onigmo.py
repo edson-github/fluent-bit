@@ -35,6 +35,7 @@ Onigmo DLL (onigmo.dll, libonigmo.so, etc.) must be placed in the
 default search path. The default search path depends on the system.
 """
 
+
 import ctypes
 import os
 import sys
@@ -139,13 +140,8 @@ class OnigErrorInfo(ctypes.Structure):
 
 # load the DLL or the shared library
 
-if sys.version_info[0:3] < (3, 8, 0):
-    loadargs = {}
-else:
-    # Use the default (potentially insecure) search path
-    loadargs = {'winmode': 0}
-
-if os.name in ("nt", "ce"):
+loadargs = {} if sys.version_info[:3] < (3, 8, 0) else {'winmode': 0}
+if os.name in {"nt", "ce"}:
     # Win32
     _libname = "onigmo.dll"
     try:

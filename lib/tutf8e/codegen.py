@@ -290,8 +290,6 @@ int tutf8e_buffer_encode
         v.append(ord(bytes([i]).decode(e)[0]))
       except:
         v.append(0xffff)
-        pass
-
     src.write('\n')
     src.write('const uint16_t tutf8e_%s_utf8[256] =\n'%(name))
     src.write('{\n')
@@ -322,7 +320,7 @@ for e in sorted(encodings):
   domain   = []
 
   name = e.replace('-', '_').lower()
-  with open('include/tutf8e/%s.h'%(name), 'w') as include:
+  with open(f'include/tutf8e/{name}.h', 'w') as include:
 
     include.write('''
 #ifndef TUTF8E_%s_H
@@ -409,7 +407,7 @@ with open('test/test.c', 'w') as test:
   for i in tests:
     if i[1] in encodings:
       test.write('  static const char %s[] = {\n'%(i[0]))
-      data = [i for i in i[2].encode(i[1])] + [ 0 ]
+      data = list(i[2].encode(i[1])) + [ 0 ]
       for i in range(0, len(data), 24):
         test.write('    %s,\n'%(', '.join([ '0x%02x'%(j) for j in data[i:i+24]])))
       test.write('  };\n')
@@ -418,7 +416,7 @@ with open('test/test.c', 'w') as test:
   for i in tests:
     if i[1] in encodings:
       test.write('  static const char %sUTF8[] = {\n'%(i[0]))
-      data = [i for i in i[2].encode('utf-8')] + [ 0 ]
+      data = list(i[2].encode('utf-8')) + [ 0 ]
       for i in range(0, len(data), 24):
         test.write('    %s,\n'%(', '.join([ '0x%02x'%(j) for j in data[i:i+24]])))
       test.write('  };\n')
