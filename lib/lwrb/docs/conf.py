@@ -54,15 +54,15 @@ if git_branch.find('master') >= 0 or git_branch.find('main') >= 0:
     #version = os.popen('git describe --tags --abbrev=0').read().strip()
     version = 'latest-stable'
 elif git_branch.find('develop-') >= 0 or git_branch.find('develop/') >= 0:
-    version = 'branch-' + git_branch
-elif git_branch == 'develop' or git_branch == 'origin/develop':
+    version = f'branch-{git_branch}'
+elif git_branch in ['develop', 'origin/develop']:
     version = 'latest-develop'
 else:
     version = os.popen('git describe --tags --abbrev=0').read().strip()
 
 # For debugging purpose only
-print("GIT BRANCH: " + git_branch)
-print("PROJ VERSION: " + version)
+print(f"GIT BRANCH: {git_branch}")
+print(f"PROJ VERSION: {version}")
 
 # -- General configuration ---------------------------------------------------
 

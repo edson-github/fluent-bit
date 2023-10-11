@@ -61,7 +61,4 @@ class CTestCase(CTestCaseBase):
 
         #deregister event
         ret = deregister("/alert/overheat")
-        if (ret != 69):
-            return False, ''
-
-        return True, ''
+        return (False, '') if (ret != 69) else (True, '')

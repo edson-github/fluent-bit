@@ -48,8 +48,7 @@ def fetch_latest_git_tag():
     p = subprocess.run(shlex.split(list_tag_cmd), capture_output=True, check=True)
 
     all_tags = p.stdout.decode().strip()
-    latest_tag = all_tags.split("\n")[-1]
-    return latest_tag
+    return all_tags.split("\n")[-1]
 
 
 def match_version_pattern(v):

@@ -88,7 +88,7 @@ def create_null_pointer(struct_type):
 def is_null_pointer(c_pointer):
     # pylint: disable=protected-access
     if isinstance(c_pointer, c._Pointer):
-        return False if c_pointer else True
+        return not c_pointer
     else:
         raise RuntimeError("not a pointer")
 
@@ -114,10 +114,10 @@ def wasm_vec_to_list(vec):
     ]
     known_vec_pointer_type = [POINTER(type) for type in known_vec_type]
 
-    if any([isinstance(vec, type) for type in known_vec_pointer_type]):
+    if any(isinstance(vec, type) for type in known_vec_pointer_type):
         vec = dereference(vec)
         return [vec.data[i] for i in range(vec.num_elems)]
-    elif any([isinstance(vec, type) for type in known_vec_type]):
+    elif any(isinstance(vec, type) for type in known_vec_type):
         return [vec.data[i] for i in range(vec.num_elems)]
     else:
         raise RuntimeError("not a known vector type")
@@ -127,8 +127,7 @@ def list_to_carray(elem_type, *args):
     """
     Converts a python list into a C array
     """
-    data = (elem_type * len(args))(*args)
-    return data
+    return (elem_type * len(args))(*args)
 
 
 def load_module_file(wasm_content):
@@ -458,8 +457,7 @@ def __repr_wasm_module_t(self):
     exports = wasm_exporttype_vec_t()
     wasm_module_exports(self, exports)
 
-    ret = "(module"
-    ret += str(imports).replace("(import", "\n  (import")
+    ret = "(module" + str(imports).replace("(import", "\n  (import")
     ret += str(exports).replace("(export", "\n  (export")
     ret += "\n)"
     return ret
@@ -472,8 +470,7 @@ def __repr_wasm_instance_t(self):
     exports = wasm_extern_vec_t()
     wasm_instance_exports(self, exports)
 
-    ret = "(instance"
-    ret += str(exports).replace("(export", "\n (export")
+    ret = "(instance" + str(exports).replace("(export", "\n (export")
     ret += "\n)"
     return ret
 

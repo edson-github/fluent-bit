@@ -21,43 +21,30 @@ def write_entry(handle, key, string, num_bool, eof=False):
     handle.write(",\"\t\t\\\n")
 
 # Invalid JSON
-f = open("data/common/json_invalid.h", 'w')
-write_header(f, "JSON_INVALID")
-f.write("\t\"{{{{{{{{\"")
-write_footer(f)
-f.close()
-
-# A small JSON
-f = open("data/common/json_small.h", 'w')
-write_header(f, "JSON_SMALL")
-for i in range(0, 250):
-    write_entry(f, "key_%i" % i, None, "false", True)
-write_footer(f)
-f.close()
-
-# Long JSON
-f = open("data/common/json_long.h", 'w')
-write_header(f, "JSON_LONG")
-for i in range(0, 1000):
-    write_entry(f, "key_%i" % i, "val_%i" % i, None)
-write_footer(f)
-f.close()
-
-# Long JSON for TD
-f = open("data/td/json_td.h", 'w')
-write_header(f, "JSON_TD")
-for i in range(0, 500):
-    write_entry(f, "key_%i" % i, "val_%i" % i, None)
-write_footer(f)
-f.close()
-
-# JSON for ES
-f = open("data/es/json_es.h", 'w')
-write_header(f, "JSON_ES")
-write_entry(f, "key_0", None, "false")
-write_entry(f, "key_1", None, "true")
-write_entry(f, "key_2", "some string", None)
-write_entry(f, "key_3", None, 0.12345678)
-write_entry(f, "key_4", None, 5000)
-write_footer(f)
-f.close()
+with open("data/common/json_invalid.h", 'w') as f:
+    write_header(f, "JSON_INVALID")
+    f.write("\t\"{{{{{{{{\"")
+    write_footer(f)
+with open("data/common/json_small.h", 'w') as f:
+    write_header(f, "JSON_SMALL")
+    for i in range(0, 250):
+        write_entry(f, "key_%i" % i, None, "false", True)
+    write_footer(f)
+with open("data/common/json_long.h", 'w') as f:
+    write_header(f, "JSON_LONG")
+    for i in range(0, 1000):
+        write_entry(f, "key_%i" % i, "val_%i" % i, None)
+    write_footer(f)
+with open("data/td/json_td.h", 'w') as f:
+    write_header(f, "JSON_TD")
+    for i in range(0, 500):
+        write_entry(f, "key_%i" % i, "val_%i" % i, None)
+    write_footer(f)
+with open("data/es/json_es.h", 'w') as f:
+    write_header(f, "JSON_ES")
+    write_entry(f, "key_0", None, "false")
+    write_entry(f, "key_1", None, "true")
+    write_entry(f, "key_2", "some string", None)
+    write_entry(f, "key_3", None, 0.12345678)
+    write_entry(f, "key_4", None, 5000)
+    write_footer(f)

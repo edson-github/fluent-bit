@@ -59,11 +59,8 @@ emscripten_headers_src_dst = [
 def checksum(name, local_file):
     sha256 = hashlib.sha256()
     with open(local_file, "rb") as f:
-        bytes = f.read(4096)
-        while bytes:
+        while bytes := f.read(4096):
             sha256.update(bytes)
-            bytes = f.read(4096)
-
     return sha256.hexdigest() == external_repos[name]["sha256"]
 
 
@@ -119,7 +116,7 @@ def unpack(tar_file, strip_prefix, dest_dir):
 
 
 def download_repo(name, root):
-    if not name in external_repos:
+    if name not in external_repos:
         logger.error(f"{name} is not a known repository")
         return False
 
@@ -235,10 +232,7 @@ def main():
         if not download_repo(repo, root):
             return False
 
-    if not collect_headers(root, pathlib.Path(options.install)):
-        return False
-
-    return True
+    return bool(collect_headers(root, pathlib.Path(options.install)))
 
 
 if __name__ == "__main__":

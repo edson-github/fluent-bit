@@ -122,7 +122,7 @@ def build_llvm(llvm_dir, platform, backends, projects, use_clang=False, extra_fl
         raise Exception(f"{llvm_dir} doesn't exist")
 
     build_dir = llvm_dir.joinpath(
-        "win32build" if "windows" == platform else "build"
+        "win32build" if platform == "windows" else "build"
     ).resolve()
     build_dir.mkdir(exist_ok=True)
 
@@ -145,7 +145,7 @@ def build_llvm(llvm_dir, platform, backends, projects, use_clang=False, extra_fl
     )
 
     CONFIG_CMD = f"cmake {compile_options} {extra_flags} ../llvm"
-    if "windows" == platform:
+    if platform == "windows":
         if "mingw" in sysconfig.get_platform().lower():
             CONFIG_CMD += " -G'Unix Makefiles'"
         else:
@@ -155,7 +155,7 @@ def build_llvm(llvm_dir, platform, backends, projects, use_clang=False, extra_fl
     subprocess.check_call(shlex.split(CONFIG_CMD), cwd=build_dir)
 
     BUILD_CMD = "cmake --build . --target package" + (
-        " --config Release" if "windows" == platform else ""
+        " --config Release" if platform == "windows" else ""
     )
     subprocess.check_call(shlex.split(BUILD_CMD), cwd=build_dir)
 
@@ -165,7 +165,7 @@ def build_llvm(llvm_dir, platform, backends, projects, use_clang=False, extra_fl
 def repackage_llvm(llvm_dir):
     build_dir = llvm_dir.joinpath("./build").resolve()
 
-    packs = [f for f in build_dir.glob("LLVM-*.tar.gz")]
+    packs = list(build_dir.glob("LLVM-*.tar.gz"))
     if len(packs) > 1:
         raise Exception("Find more than one LLVM-*.tar.gz")
 
@@ -238,16 +238,15 @@ def main():
 
     # if the "platform" is not identified in the command line option,
     # detect it
-    if not options.platform:
-        if sys.platform.startswith("win32") or sys.platform.startswith("msys"):
-            platform = "windows"
-        elif sys.platform.startswith("darwin"):
-            platform = "darwin"
-        else:
-            platform = "linux"
-    else:
+    if options.platform:
         platform = options.platform
 
+    elif sys.platform.startswith("win32") or sys.platform.startswith("msys"):
+        platform = "windows"
+    elif sys.platform.startswith("darwin"):
+        platform = "darwin"
+    else:
+        platform = "linux"
     llvm_repo_and_branch = {
         "arc": {
             "repo": "https://github.com/llvm/llvm-project.git",
@@ -281,13 +280,13 @@ def main():
             commit_hash = query_llvm_version(llvm_info)
             print(commit_hash)
             return commit_hash is not None
-        
+
         repo_addr = llvm_info["repo"]
         if os.environ.get('USE_GIT_SSH') == "true":
             repo_addr = llvm_info["repo_ssh"]
         else:
             print("To use ssh for git clone, run: export USE_GIT_SSH=true")
-        
+
         llvm_dir = clone_llvm(deps_dir, repo_addr, llvm_info["branch"])
         if (
             build_llvm(

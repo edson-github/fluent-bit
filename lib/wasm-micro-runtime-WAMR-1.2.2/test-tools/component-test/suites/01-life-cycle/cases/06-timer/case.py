@@ -64,7 +64,4 @@ class CTestCase(CTestCaseBase):
             return False, ''
         expect_response_payload = {"num":2}
         ret = check_response_payload(expect_response_payload)
-        if (ret == False):
-            return False, ''
-
-        return True, ''
+        return (False, '') if (ret == False) else (True, '')

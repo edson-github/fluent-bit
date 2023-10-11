@@ -50,10 +50,7 @@ def locate_command(command: str) -> bool:
 
 def is_excluded(path: str) -> bool:
     path = pathlib.Path(path).resolve()
-    for exclude_path in EXCLUDE_PATHS:
-        if path.match(exclude_path):
-            return True
-    return False
+    return any(path.match(exclude_path) for exclude_path in EXCLUDE_PATHS)
 
 
 def pre_flight_check(root: pathlib) -> bool:
@@ -70,7 +67,7 @@ def pre_flight_check(root: pathlib) -> bool:
                 shlex.split(f"{CLANG_FORMAT_CMD} --dump-config"), cwd=root
             )
         except subprocess.CalledProcessError:
-            print(f"Might have a typo in .clang-format")
+            print("Might have a typo in .clang-format")
             return False
         return True
 
@@ -245,7 +242,7 @@ def process_entire_pr(root: pathlib, commits: str) -> bool:
 
     commit_list = parse_commits_range(root, commits)
     if not commit_list:
-        print(f"Quit since there is no commit to check with")
+        print("Quit since there is no commit to check with")
         return True
 
     print(f"there are {len(commit_list)} commits in the PR")

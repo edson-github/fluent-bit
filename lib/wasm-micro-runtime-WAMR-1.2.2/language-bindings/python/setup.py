@@ -39,12 +39,8 @@ class PreEggInfoCommand(egg_info):
         egg_info.run(self)
 
 
-with open("README.md") as f:
-    readme = f.read()
-
-with open("LICENSE") as f:
-    license = f.read()
-
+readme = pathlib.Path("README.md").read_text()
+license = pathlib.Path("LICENSE").read_text()
 setup(
     name="wamr-python",
     version="0.1.0",

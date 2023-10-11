@@ -42,15 +42,14 @@ class AccessRule:
         self.protocol = protocol
         self.status = status
 
-        if size is not None:
-            if size.isdigit():
-                self.size = size
-            else:
-                if size[:8] == 'FILESIZE':                
-                    target = size[8:].strip()
-                    self.size = os.path.getsize(target)
-                else:
-                    self.size = size
+        if size is None:
+            self.size = size
+
+        elif size.isdigit():
+            self.size = size
+        elif size[:8] == 'FILESIZE':                
+            target = size[8:].strip()
+            self.size = os.path.getsize(target)
         else:
             self.size = size
 
@@ -157,17 +156,9 @@ class Logfile:
         exit(1)
         
     def get_last_file_line(self, file):
-        f = open(file, 'r')
-        lines = f.readlines()
-        f.close()
-
-        if len(lines) < 1:
-
-            return None
-
-        # get last file line
-        last = lines[len(lines) - 1]
-        return last
+        with open(file, 'r') as f:
+            lines = f.readlines()
+        return None if len(lines) < 1 else lines[len(lines) - 1]
 
     def check_field(self, rule, log):
         if rule is not None:

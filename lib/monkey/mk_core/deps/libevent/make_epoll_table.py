@@ -13,10 +13,7 @@ def get(old,wc,rc,cc):
         if cc == 'add' or (cc != 'del' and 'c' in old):
             events.append("EPOLLRDHUP")
 
-        if old == "0":
-            op = "EPOLL_CTL_ADD"
-        else:
-            op = "EPOLL_CTL_MOD"
+        op = "EPOLL_CTL_ADD" if old == "0" else "EPOLL_CTL_MOD"
         return "|".join(events), op
 
     if ('del' in (rc, wc, cc)):

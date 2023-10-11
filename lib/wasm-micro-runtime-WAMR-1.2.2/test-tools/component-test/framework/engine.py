@@ -30,10 +30,7 @@ def read_cases_from_file(file_path):
 
     content = [x.strip() for x in content]
     print(content)
-    if len(content) == 0:
-        return False, None
-
-    return True, content
+    return (False, None) if not content else (True, content)
 
 
 

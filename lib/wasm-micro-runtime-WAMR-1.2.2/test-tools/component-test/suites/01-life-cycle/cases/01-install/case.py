@@ -88,7 +88,4 @@ class CTestCase(CTestCaseBase):
         if (ret != 69):
             return False, ''
         ret = check_query_apps(["App1"])
-        if (ret == False):
-            return False, ''
-
-        return True, ''
+        return (False, '') if (ret == False) else (True, '')

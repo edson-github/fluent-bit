@@ -34,7 +34,7 @@ def t_kill_process_by_name(p_keywords):
             pid_list.append(tmp[1])
 
     for pid in pid_list:
-        cmd = "kill -9 {}".format(pid)
+        cmd = f"kill -9 {pid}"
         subprocess.call(shlex.split(cmd))
 
     return pid_list
@@ -50,12 +50,11 @@ def t_process_exists(proc, kill = 0):
     processes  = t_getPIDs(proc)
 
     for pid in processes:
-            if kill == 0:
-                return True
-            else:
-                print("kill [" + proc + "], pid=" + str(pid))
-                os.kill((pid), 9)
-                ret = True
+        if kill == 0:
+            return True
+        print(f"kill [{proc}], pid={str(pid)}")
+        os.kill((pid), 9)
+        ret = True
     return ret
 
 def t_copy_files(source_dir, pattern, dest_dir):
@@ -65,7 +64,7 @@ def t_copy_files(source_dir, pattern, dest_dir):
             continue
 
         if pattern in ('*', '') or files.endswith(pattern):
-            shutil.copy(source_dir+"/"+ file, dest_dir)
+            shutil.copy(f"{source_dir}/{file}", dest_dir)
 
 
 
